@@ -71,8 +71,7 @@ Vec3.prototype.show = function() {
     console.log("x: " + this.x + ", y: " + this.y + ", z: " + this.z);
 }
 
-//ids shape
-var sphere = 1;
+
 
 function Camera(eye, at, up) {
     this.eye = eye;
@@ -81,42 +80,95 @@ function Camera(eye, at, up) {
 }
 
 //TODO: faça função que mapeia
-//de mundo para camera e retorne uma matriz 4x4
+//de camera para mundo e retorne uma matriz 4x4
 function lookAtM(eye, at, up) {
+    var F = identity();
+    Vec = new Vec3();
+    zc = Vec.unitary(Vec.minus(eye, at));
+    xc = Vec.unitary(Vec.cross(up, zc));
+    yc = Vec.unitary(Vec.cross(zc, xc));
+    F[0][0] = xc.x;
+    F[0][1] = yc.x;
+    F[0][2] = zc.x;
 
+    F[1][0] = xc.y;
+    F[1][1] = yc.y;
+    F[1][2] = zc.y;
+
+    F[2][0] = xc.z;
+    F[2][1] = yc.z;
+    F[2][2] = zc.z;
+
+    F[0][3] = eye.x;
+    F[1][3] = eye.y;
+    F[2][3] = eye.z;
+    return F;
 }
 
 //TODO: faça função que mapeia
-//de câmera para mundo e retorne uma matriz 4x4
+//de mundo para camera e retorne uma matriz 4x4
 function lookAtInverseM(eye, at, up) {
+    // var F = identity();
+    // Vec = new Vec3();
+    // zc = Vec.unitary(Vec.minus(eye, at));
+    // xc = Vec.unitary(Vec.cross(up, zc));
+    // yc = Vec.unitary(Vec.cross(zc, xc));
 
+
+    // F[0][0] = xc.x;
+    // F[0][1] = xc.y;
+    // F[0][2] = xc.z;
+
+    // F[1][0] = yc.x;
+    // F[1][1] = yc.y;
+    // F[1][2] = yc.z;
+
+    // F[2][0] = zc.x;
+    // F[2][1] = zc.y;
+    // F[2][2] = zc.z;
+
+    // F[0][3] = -Vec.dot(eye, xc);
+    // F[1][3] = -Vec.dot(eye, yc);
+    // F[2][3] = -Vec.dot(eye, zc);
+    // return F;
 }
 
-//de mundo para camera
+//de camera para mundo
 Camera.prototype.lookAt = function() {
     return lookAtM(this.eye, this.at, this.up);
 }
 
-//de câmera para mundo
+//de mundo para camera
 Camera.prototype.lookAtInverse = function() {
-    return lookAtInverseM(this.eye, this.at, this.up);
-}
+        return lookAtInverseM(this.eye, this.at, this.up);
+    }
+    //ids shape
+var sphere = 1;
 
 function Shape() {
     this.geometry = sphere;
     this.name = "";
     this.translate = new Vec3(0, 0, 0);
-    this.scale = new Vec3(0, 0, 0);
+    this.scale = new Vec3(1, 1, 1);
     this.rotate = new Vec3(0, 0, 0);
+    this.ambient = new Vec3(188 / 255., 4 / 255., 60 / 255.);
+    this.diffuse = new Vec3(228 / 255., 44 / 255., 100 / 255.);
+    this.specular = new Vec3(208 / 235., 44 / 255., 80 / 255.);
+    this.shine = 80.;
+    this.imageTexture = null;
 }
 
 function Shape(name) {
     this.geometry = sphere;
     this.name = name;
     this.translate = new Vec3(0, 0, 0);
-    this.scale = new Vec3(0, 0, 0);
+    this.scale = new Vec3(1, 1, 1);
     this.rotate = new Vec3(0, 0, 0);
-    this.shine = 0.0;
+    this.ambient = new Vec3(188 / 255., 4 / 255., 60 / 255.);
+    this.diffuse = new Vec3(228 / 255., 44 / 255., 100 / 255.);
+    this.specular = new Vec3(208 / 235., 44 / 255., 80 / 255.);
+    this.shine = 225;
+    this.imageTexture = null;
 }
 
 Shape.prototype.setScale = function(x = 0, y = 0, z = 0) {
@@ -155,16 +207,75 @@ Shape.prototype.transformMatrixVec = function() {
 
 Shape.prototype.transformMatrixInverse = function() {
     var Ti = translateMatrixI(this.translate.x, this.translate.y, this.translate.z); //TODO: modificar para receber a matriz de escala
-    var Ri = multMatrix(rotateMatrixXI(this.rotate.z), multMatrix(rotateMatrixYI(this.rotate.y), rotateMatrixZI(this.rotate.x))); //TODO: modificar para receber a matriz de rotação
+    var Ri = multMatrix(rotateMatrixZI(this.rotate.z), multMatrix(rotateMatrixYI(this.rotate.y), rotateMatrixXI(this.rotate.x))); //TODO: modificar para receber a matriz de rotação
     var Si = scaleMatrixI(this.scale.x, this.scale.y, this.scale.z);
     return multMatrix(Si, multMatrix(Ri, Ti));
 }
 
 Shape.prototype.transformMatrixVecInverse = function() {
-    var Ti = translateMatrixI(this.translate.x, this.translate.y, this.translate.z); //TODO: modificar para receber a matriz de escala
-    var Ri = multMatrix(rotateMatrixXI(this.rotate.z), multMatrix(rotateMatrixYI(this.rotate.y), rotateMatrixZI(this.rotate.x))); //TODO: modificar para receber a matriz de rotação
+    var Ri = multMatrix(rotateMatrixZI(this.rotate.z), multMatrix(rotateMatrixYI(this.rotate.y), rotateMatrixXI(this.rotate.x))); //TODO: modificar para receber a matriz de rotação
     var Si = scaleMatrixI(this.scale.x, this.scale.y, this.scale.z);
     return multMatrix(Si, Ri);
+}
+
+Shape.prototype.setTexture = function(url){
+    this.imageTexture = new Image();
+    this.imageTexture.src = url;
+    this.contextCanvas = getImageData(this.imageTexture);
+}
+
+function getImageData( image ) {
+    var canvas = document.createElement('canvas');
+    var context = canvas.getContext('2d');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    context.drawImage(image, 0, 0);
+    return context;
+}
+
+Shape.prototype.getTextureColor = function(s,t){
+    // if(this.imageTexture==null){
+    //     return new Vec3(1,1,1); //retorna branco
+    // }else{
+        var width =this.imageTexture.width;
+        var height = this.imageTexture.height;
+        // if((s>1||s<0) || (t<0 || t>1)) 
+        //     console.log("s: "+s+"\t t:"+t);
+        var x = Math.floor(width*s);
+        var y = Math.floor(height*t);
+        //if((x>width||x<0) || (y>height||y<0)) console.log("x: "+x+", y:"+y);
+        
+       
+        var pixel = this.contextCanvas.getImageData(x, y, 1, 1).data;
+        // if(pixel[0]==0) 
+        // {
+        console.log(pixel);
+            // console.log("s: "+s+"\t t:"+t);
+            // console.log("x: "+x+", y:"+y);
+        // }
+        return new Vec3(pixel[0]/255.,pixel[1]/255.,pixel[2]/255.);
+
+    //}
+    
+    
+}
+
+Shape.prototype.getCoordsParametrics = function(point){
+    //if(this.geometry==sphere){
+        var u = 0.5 + Math.atan2(point.x,point.z)/(2*Math.PI);
+        var v = 0.5 - (Math.asin(point.y)/(Math.PI));
+        
+        // if(u>max) max = u;
+        // if(u<min) min = u;
+        //console.log("max u: "+max+", min u: "+min);
+        // var u = Math.abs(Math.atan2(x, z) / (2*Math.PI) + 0.5);
+        // var v = Math.abs(y * 0.5 + 0.5);
+        //return new Vec3(u,v,0);
+        return new Vec3(u,v,0);
+    //}
+    
+    //return new Vec3(1,1,0);
+    
 }
 
 Shape.prototype.testIntersectionRay = function(ray) {
@@ -188,19 +299,22 @@ Shape.prototype.testIntersectionRay = function(ray) {
         if (delta >= 0) {
             var t1 = (-b + Math.sqrt(delta)) / (2 * a);
             var t2 = (-b - Math.sqrt(delta)) / (2 * a);
-            t = Math.min(t1, t2);
+            var t = Math.min(t1, t2);
 
             var point = ray.get(t);
             var normal = point;
+            var coodParams = this.getCoordsParametrics(point);
+            var texture_color = this.getTextureColor(coodParams.x,coodParams.y);
             var M = this.transformMatrix();
             point = multVec4(M, point);
             M = this.transformMatrixVec();
             normal = multVec4(M, normal);
             normal = Vec.unitary(normal);
             var t_ = Vec.module(Vec.minus(point, ray_w.o));
-            return [true, point, normal, t_];
+            
+            return [true, point, normal, t_, this,texture_color];
         }
 
     }
-    return [false, null];
+    return [false];
 }
